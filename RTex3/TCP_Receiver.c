@@ -10,86 +10,115 @@
 #define PORT 8080
 #define BUFFER_SIZE 1024
 
-void receive_file(int sockfd) {
+float receive_file(int server_sock) {
     FILE *file;
     char buffer[BUFFER_SIZE];
     time_t start, end;
-    double time_taken;
+    float time_taken;
     int bytesReceived;
 
     file = fopen("received_file.txt", "w");
     if (file == NULL) {
         perror("Error creating file");
-        return;
+        return 0;
     }
 
-    start = time(NULL);
+    start = clock();
 
-    while ((bytesReceived = recv(sockfd, buffer, BUFFER_SIZE, 0)) > 0) {
+    while ((bytesReceived = recv(server_sock, buffer, BUFFER_SIZE, 0)) > 0) {
         fwrite(buffer, 1, bytesReceived, file);
         if (bytesReceived < BUFFER_SIZE)
             break;
     }
     fclose(file);
 
-    end = time(NULL);
-    time_taken = difftime(end, start);
+    end = clock();
+    time_taken = ((double) (end - start)) / CLOCKS_PER_SEC * 1000;
 
-    printf("File received successfully. Time taken: %.2f seconds\n", time_taken);
-
-    fclose(file);
+    printf("File transfer completed.\n");
+    return time_taken;
 }
 
 int main() {
-    int sockfd, newsockfd;
-    struct sockaddr_in servaddr, cliaddr;
+    printf("Starting Receiver...\n");
+
+    int server_sock, client_sock;
+    struct sockaddr_in server_addr, client_addr;
     socklen_t len;
     char buffer[BUFFER_SIZE];
+    float *timesArr = NULL;
+    timesArr = (float*)malloc(sizeof(float));
+    int timesArr_size = 0;
+    double *mbArr = NULL;
+    mbArr = (double*)malloc(sizeof(double));
+    int mbArr_size = 0;
+    int countTimes = 0;
 
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd == -1) {
+    server_sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_sock < 0) {
         perror("Socket creation failed");
         return 1;
-    } else{ printf("Socket creation successful\n"); }
-
-    memset(&servaddr, 0, sizeof(servaddr));
-
-    servaddr.sin_family = AF_INET;
-    servaddr.sin_addr.s_addr = INADDR_ANY;
-    servaddr.sin_port = htons(PORT);
-
-    if (bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
-        perror("Bind failed");
-        return 1;
-    } else{ printf("Bind successful\n"); }
-
-    if (listen(sockfd, 5) < 0) {
-        perror("Listen failed");
-        return 1;
-    } else{ printf("Listen successful\n"); }
-
-    len = sizeof(cliaddr);
-
-    newsockfd = accept(sockfd, (struct sockaddr *)&cliaddr, &len);
-    if (newsockfd < 0) {
-        perror("Accept failed");
-        return 1;
-    } else{ printf("Accept successful\n"); }
-
-    receive_file(newsockfd);
-    // return new file?
-    
-    while (1) {
-        recv(newsockfd, buffer, BUFFER_SIZE, 0);
-        if (strcmp(buffer, "exit") == 0) {
-            break;
-        } else {
-            receive_file(newsockfd);
-        }
     }
 
-    close(newsockfd);
-    close(sockfd);
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.sin_port = htons(PORT);
+
+    if (bind(server_sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+        perror("Bind failed");
+        return 1;
+    }
+    if (listen(server_sock, 5) < 0) {
+        perror("Listen failed");
+        return 1;
+    }
+    printf("Waiting for TCP connection...\n");
+
+    len = sizeof(client_addr);
+    client_sock = accept(server_sock, (struct sockaddr*)&client_addr, &len);
+    if (client_sock < 0) {
+        perror("Accept failed");
+        return 1;
+    } 
+    printf("Sender connected, beginning to receive file...\n");
+    while (1) {
+        int bytesReceived = recv(client_sock, buffer, BUFFER_SIZE, 0);
+        if (bytesReceived < 0) {
+            perror("Receive error");
+            break;
+        } else if (bytesReceived == 0) {
+            printf("Sender closed the connection.\n");
+            break;
+        } else {
+            buffer[bytesReceived] = '\0';
+            if (strcmp(buffer, "exit") == 0) {
+                printf("Sender sent exit message.\n");
+                break;
+            } else {
+                timesArr = (float*)realloc(timesArr,(timesArr_size+1)*sizeof(float));
+                timesArr[timesArr_size++] = receive_file(client_sock);
+                mbArr = (double*)realloc(mbArr,(mbArr_size+1)*sizeof(double));
+                mbArr[mbArr_size++] = bytesReceived / 1024.0;
+                countTimes++;
+            }
+        }
+    }
+    printf("----------------------------------");
+    printf("STATISTICS :\n");
+    float totalTime=0;
+    float totalMS=0;
+    for(int i=0; i<countTimes; i++){
+        printf("Run #%d Data: Time=%fms; Speed=%fMB/s\n", i+1, timesArr[i], mbArr[i]);
+        totalTime += timesArr[i];
+        totalMS += mbArr[i];
+    }
+    printf("\nAverage time: %fms.\n", totalTime/countTimes);
+    printf("\nAverage bandwidth:: %fmb.\n", totalMS/countTimes);
+    printf("----------------------------------");
+    printf("Receiver end.");
+    close(client_sock);
+    close(server_sock);
 
     return 0;
 }

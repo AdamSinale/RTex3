@@ -10,25 +10,24 @@
 #define BUFFER_SIZE 1024
 
 int main() {
-    int sockfd;
+    int sock;
     char buffer[BUFFER_SIZE];
+    struct sockaddr_in addr;
     FILE *file;
     char *filename = "file.txt";
 
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd == -1) {
+    sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) {
         perror("Socket creation failed");
         return 1;
     }
 
-    struct sockaddr_in recAddr;
-    memset(&recAddr, 0, sizeof(recAddr));
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(PORT);
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-    recAddr.sin_family = AF_INET;
-    recAddr.sin_port = htons(PORT);
-    recAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-
-    if (connect(sockfd, (struct sockaddr *)&recAddr, sizeof(recAddr)) < 0) {
+    if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         perror("Connection failed");
         return 1;
     } else{ printf("connected to server\n"); }
@@ -49,7 +48,7 @@ int main() {
         }
 
         while (fgets(buffer, BUFFER_SIZE, file) != NULL) {
-            send(sockfd, buffer, strlen(buffer), 0);
+            send(sock, buffer, strlen(buffer), 0);
         }
         fclose(file);
 
@@ -63,9 +62,9 @@ int main() {
         }
     }
 
-    send(sockfd, "exit", strlen("exit"), 0);
+    send(sock, "exit", strlen("exit"), 0);
 
-    close(sockfd);
+    close(sock);
 
     return 0;
 }
