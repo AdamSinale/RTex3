@@ -70,42 +70,8 @@ int main(int argc, char *argv[]) {
     time_t start, end;
     float time_taken;
 
-    // while (1) {
-    //     size_t total_bytes = 0;  // the total bytes received so far
-    //     start = clock();  // start measuring the time
-    //     ssize_t bytes_received = recv(client_sock, buffer, sizeof(buffer), 0);
-    //     total_bytes += bytes_received;
-    //     if (bytes_received == -1) {
-    //         perror("recv");
-    //         return 1;
-    //     }
-    //     if (strncmp(buffer, "exit", 4) == 0) {
-    //         printf("exit message received\n");
-    //         break;
-    //     }
-    //     while (total_bytes < sizeof(buffer)) {
-    //         bytes_received = recv(client_sock, buffer + total_bytes, sizeof(buffer) - total_bytes, 0);
-    //         if (bytes_received == -1) {
-    //             perror("recv");
-    //             return 1;
-    //         }
-    //         if (bytes_received == 0) {
-    //             printf("sender closed the connection\n");
-    //             break;
-    //         }
-    //         total_bytes += bytes_received;
-    //     }
-    //     end = clock();
-    //     printf("File transfer completed.\n");
-    //     time_taken = ((double) (end - start)) / CLOCKS_PER_SEC * 1000;
-    //     timesArr = (float*)realloc(timesArr,(timesArr_size+1)*sizeof(float));
-    //     timesArr[timesArr_size++] = time_taken;
-    //     mbArr = (double*)realloc(mbArr,(mbArr_size+1)*sizeof(double));
-    //     mbArr[mbArr_size++] = (bytes_received/1024.0)/(time_taken/1000);
-    //     countTimes++;
-    // }
     while(1){
-        size_t total_bytes = 0;  // the total bytes received so far
+        size_t total_bytes = 0;
         start = clock();  // start measuring the time
         ssize_t bytes_received = recv(client_sock, buffer, sizeof(buffer), 0);
         total_bytes += bytes_received;
@@ -133,11 +99,11 @@ int main(int argc, char *argv[]) {
         }
         end = clock();
         printf("File transfer completed.\n");
-        time_taken = ((double) (end - start)) / CLOCKS_PER_SEC * 1000;
+        time_taken = ((double) (end - start)) / CLOCKS_PER_SEC;
         timesArr = (float*)realloc(timesArr,(timesArr_size+1)*sizeof(float));
-        timesArr[timesArr_size++] = time_taken;
+        timesArr[timesArr_size++] = time_taken * 1000;
         mbArr = (double*)realloc(mbArr,(mbArr_size+1)*sizeof(double));
-        mbArr[mbArr_size++] = (bytes_received/1024.0)/(time_taken/1000);
+        mbArr[mbArr_size++] = 2/(time_taken);
         countTimes++;
     }
     
